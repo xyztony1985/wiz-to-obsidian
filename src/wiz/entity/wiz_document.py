@@ -50,8 +50,6 @@ class WizDocument(object):
         self.wiz_dir = wiz_dir
 
         self.file = Path(str(self.wiz_dir) + self.location + self.name).expanduser()
-        # if not self.file.exists():
-        #     raise FileNotFoundError(f'找不到文件 `{self.file}`！')
 
         if self.attachment_count == 0:
             return

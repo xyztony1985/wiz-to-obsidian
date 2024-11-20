@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import traceback
+import logging
 from pathlib import Path
 from zipfile import ZipFile, BadZipFile
 
@@ -120,12 +121,19 @@ class WizConvertor(object):
                 print(f"处理失败 {traceback.format_exc()}")
 
     def _convert_document(self, document: WizDocument, index: int, total: int):
+        print('')
+        print(f"({index}/{total}) {document.location}{document.title}")
+        print("开始处理")
+
         is_converted = self._is_converted(document.guid)
         if is_converted:
+            print('已处理过，跳过.')
             return
 
-        print(f"{index}/{total}")
-        print(f"{document.title} | {document.location}{document.name} 处理开始")
+        # 转换前，做一些必要的检查
+        if not document.file.exists():
+            logging.warning(f'找不到文件 `{document.file}`，可能没有下载，请检查！')
+            return
 
         # 解压文档压缩包
         file_extract_dir = self._extract_zip(document)
@@ -168,6 +176,7 @@ class WizConvertor(object):
         # 如果目标文件夹已经存在，就不解压了
         if file_extract_dir.exists():
             return file_extract_dir
+
         try:
             zip_file = ZipFile(document.file)
             zip_file.extractall(file_extract_dir)
