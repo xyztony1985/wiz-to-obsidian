@@ -2,8 +2,8 @@ from pathlib import Path
 import chardet
 import re
 
-from src.wiz.entity.wiz_image import WizImage
-from src.wiz.entity.wiz_internal_link import WizInternalLink
+from wiz.entity.wiz_image import WizImage
+from wiz.entity.wiz_internal_link import WizInternalLink
 
 RE_A_START = r'<a href="'
 RE_A_END = r'"[^>]*?>(.*?)</a>'

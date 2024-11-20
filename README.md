@@ -26,9 +26,9 @@
 3. 根据笔记类型进行转换；
 
 ## 测试环境
-+ macos 13.2.1
-+ python 3.9
-+ 为知笔记 4.2.691
++ Windows 11 23H2
++ python 3.12.2
++ 为知笔记 4.14.2
 
 ## 使用必读
 
@@ -42,8 +42,25 @@
     + 会在 `{笔记文件夹名}_w2o` 目录下创建 `convertor.db` 文件，转换完成后可以删除
 
 
-## 入口
+## 运行前初始化
+```bash
+# 创建虚拟环境
+python -m venv .venv
+# 激活虚拟环境
+.venv\Scripts\activate
 
-`src/main.py`
+# 安装依赖
+pip install -r requirements.txt -i https://mirrors.bfsu.edu.cn/pypi/web/simple/
+```
 
-笔记文件夹参考：`Wiz安装路径/My Knowledge/Data/账号名`
+## 运行
+```bash
+# 激活虚拟环境
+.venv\Scripts\activate
+
+# src 目录加到 sys.path 中，确保src目录下的包都可以正确被识别
+set "PYTHONPATH=%CD%\src"
+
+# 运行入口脚本
+python src\main.py
+```
