@@ -5,7 +5,6 @@ import requests
 from pathlib import Path
 
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
 from .wiz_md_paser import parse_wiz_html
@@ -15,10 +14,11 @@ from ..wiz_storage import WizStorage
 
 # instance of Options class allows
 # us to configure Headless Chrome
-options = Options()
+options = webdriver.EdgeOptions()
 # this parameter tells Chrome that
 # it should be run without UI (Headless)
 options.headless = True
+options.add_argument('--headless')
 # 无痕模式
 options.add_argument('--incognito')
 
@@ -69,7 +69,7 @@ def convert_md(file_extract_dir: Path, attachments: list[WizAttachment], target_
     # 转义 ?
     temp_path = temp_path.replace("?", "%3F")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Edge(options=options)
     driver.get(temp_path)
     body_element = driver.find_element(By.TAG_NAME, "body")
     # 获取文本内容
