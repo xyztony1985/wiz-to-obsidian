@@ -50,19 +50,19 @@ class WizDocument(object):
         self.wiz_dir = wiz_dir
 
         self.file = Path(str(self.wiz_dir) + self.location + self.name).expanduser()
-        if not self.file.exists():
-            raise FileNotFoundError(f'找不到文件 `{self.file}`！')
+        # if not self.file.exists():
+        #     raise FileNotFoundError(f'找不到文件 `{self.file}`！')
 
         if self.attachment_count == 0:
             return
         self.attachments_dir = Path(str(self.file.parent.joinpath(self.file.stem)) + "_Attachments")
-        if not self.attachments_dir.exists():
-            raise FileNotFoundError(f'找不到附件文件夹 `{self.attachments_dir}`！')
+        # if not self.attachments_dir.exists():
+        #     raise FileNotFoundError(f'找不到附件文件夹 `{self.attachments_dir}`！')
 
     def resolve_attachments(self, attachments: list[WizAttachment]) -> None:
         self.attachments = attachments
-        if len(self.attachments) != self.attachment_count:
-            raise ValueError(f'附件数量不匹配 {len(self.attachments)} != {self.attachment_count}！')
+        # if len(self.attachments) != self.attachment_count:
+        #     raise ValueError(f'附件数量不匹配 {len(self.attachments)} != {self.attachment_count}！')
 
     def resolve_tags(self, tags: list[WizTag]) -> None:
         self.tags = tags
