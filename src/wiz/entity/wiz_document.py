@@ -16,6 +16,9 @@ class WizDocument(object):
     guid: str = None
     title: str = None
 
+    # 当title被修改时，保存原始title
+    raw_title: str = None
+
     # 文件夹，为知笔记的文件夹就是一个用 / 分隔的字符串
     location: str = None
     name: str = None
@@ -88,6 +91,10 @@ class WizDocument(object):
         if tags:
             front_matter.append(tags)
         front_matter.append(f"date: {self.created}")
+
+        if self.raw_title is not None:
+            front_matter.append(f"aliases: {self.raw_title}")
+
         front_matter.append("---")
         return "\n".join(front_matter)
 

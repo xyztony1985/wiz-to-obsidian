@@ -134,6 +134,13 @@ class WizConvertor(object):
         if not document.file.exists():
             logging.warning(f'找不到文件 `{document.file}`，可能没有下载，请检查！')
             return
+        
+        # 笔记名含有特殊字符的，需要替换掉
+        invalid_chars  = '*"\\/<>:|?'  #obsidian的笔记的文件名不允许含有这些字符
+        if any(char in document.title for char in invalid_chars):
+            document.raw_title = document.title
+            document.title = ''.join(['-' if char in invalid_chars else char for char in document.title])
+            logging.warning(f"文件名含有特殊字符，已做处理 `{document.raw_title}` -> `{document.title}`")            
 
         # 解压文档压缩包
         file_extract_dir = self._extract_zip(document)
