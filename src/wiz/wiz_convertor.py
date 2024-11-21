@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import traceback
-import logging
+from log import log
 from pathlib import Path
 from zipfile import ZipFile, BadZipFile
 
@@ -82,7 +82,7 @@ class WizConvertor(object):
             self.conn.executescript(self.CREATE_SQL)
 
     def _is_converted(self, document_guid: str):
-        """ 获取所有文档信息
+        """ 判断笔记是否已经转换
         """
         cur = self.conn.cursor()
         cur.execute(
@@ -123,16 +123,15 @@ class WizConvertor(object):
     def _convert_document(self, document: WizDocument, index: int, total: int):
         print('')
         print(f"({index}/{total}) {document.location}{document.title}")
-        print("开始处理")
 
-        is_converted = self._is_converted(document.guid)
-        if is_converted:
-            print('已处理过，跳过.')
-            return
+        # is_converted = self._is_converted(document.guid)
+        # if is_converted:
+        #     print('已处理过，跳过.')
+        #     return
 
         # 转换前，做一些必要的检查
         if not document.file.exists():
-            logging.warning(f'找不到文件 `{document.file}`，可能没有下载，请检查！')
+            log.warning(f'找不到文件 `{document.file}`，可能没有下载，请检查！')
             return
         
         # 笔记名含有特殊字符的，需要替换掉
@@ -140,12 +139,12 @@ class WizConvertor(object):
         if any(char in document.title for char in invalid_chars):
             document.raw_title = document.title
             document.title = ''.join(['-' if char in invalid_chars else char for char in document.title])
-            logging.warning(f"文件名含有特殊字符，已做处理 `{document.raw_title}` -> `{document.title}`")            
+            log.warning(f"文件名含有特殊字符，已做处理 `{document.raw_title}` -> `{document.title}`")            
 
         # 解压文档压缩包
         file_extract_dir = self._extract_zip(document)
 
-        print(f"{file_extract_dir}")
+        log.debug(f"{file_extract_dir}")
 
         target_file = Path(str(self.target_dir) + document.location + document.title).expanduser()
         if not target_file.parent.exists():
@@ -170,10 +169,7 @@ class WizConvertor(object):
         convert_md(file_extract_dir, document.attachments, document.location + document.title, target_file, target_attachments_dir, self.wiz_storage)
         _add_front_matter_and_update_time(target_file, document)
         self._save_result(document, True)
-        if document.is_markdown():
-            print(f"处理完成")
-        else:
-            print(f'非 Markdown 文档，转为 MD 后，需手工检测正确性')
+        print(f"处理完成. {'' if document.is_markdown() else '原笔记非Markdown格式，需手工检测正确性.'}")
         return
 
     def _extract_zip(self, document: WizDocument) -> Path:
@@ -189,5 +185,4 @@ class WizConvertor(object):
             zip_file.extractall(file_extract_dir)
             return file_extract_dir
         except BadZipFile:
-            msg = f'ZIP 文件错误，可能是需要密码。 {document.file!s} |{document.title}|'
-            raise BadZipFile(msg)
+            log.error('解压失败，该笔记可能是加密笔记，请先解密')

@@ -4,23 +4,13 @@ from urllib.parse import urlparse
 import requests
 from pathlib import Path
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
+from parser import html2md
+from log import log
 
 from .wiz_md_paser import parse_wiz_html
 from ..entity.wiz_attachment import WizAttachment
 from ..entity.wiz_image import WizImage
 from ..wiz_storage import WizStorage
-
-# instance of Options class allows
-# us to configure Headless Chrome
-options = webdriver.EdgeOptions()
-# this parameter tells Chrome that
-# it should be run without UI (Headless)
-options.headless = True
-options.add_argument('--headless')
-# 无痕模式
-options.add_argument('--incognito')
 
 
 def convert_md(file_extract_dir: Path, attachments: list[WizAttachment], target_path: str, target_file: Path, target_attachments_dir: Path, wiz_storage: WizStorage):
@@ -69,18 +59,13 @@ def convert_md(file_extract_dir: Path, attachments: list[WizAttachment], target_
     # 转义 ?
     temp_path = temp_path.replace("?", "%3F")
 
-    driver = webdriver.Edge(options=options)
-    driver.get(temp_path)
-    body_element = driver.find_element(By.TAG_NAME, "body")
-    # 获取文本内容
-    markdown = body_element.text
+    markdown = html2md(temp_file)
 
-    if markdown == "" and driver.page_source == '<html><head></head><body></body></html>':
-        raise RuntimeError("Markdown is empty.")
+    if markdown == "":
+        log.warning("Markdown is empty.")
 
     target_file.write_text(markdown, "UTF-8")
 
-    driver.close()
     temp_file.unlink()
 
 
