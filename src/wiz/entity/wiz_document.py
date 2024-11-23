@@ -16,8 +16,9 @@ class WizDocument(object):
     guid: str = None
     title: str = None
 
-    # 当title被修改时，保存原始title
-    raw_title: str = None
+    output_file_name: str = None
+    """ 输出文件名，title值替换掉一些特殊字符
+    """
 
     # 文件夹，为知笔记的文件夹就是一个用 / 分隔的字符串
     location: str = None
@@ -53,17 +54,14 @@ class WizDocument(object):
         self.wiz_dir = wiz_dir
 
         self.file = Path(str(self.wiz_dir) + self.location + self.name).expanduser()
+        self._ensure_file_name_valid()
 
         if self.attachment_count == 0:
             return
         self.attachments_dir = Path(str(self.file.parent.joinpath(self.file.stem)) + "_Attachments")
-        # if not self.attachments_dir.exists():
-        #     raise FileNotFoundError(f'找不到附件文件夹 `{self.attachments_dir}`！')
 
     def resolve_attachments(self, attachments: list[WizAttachment]) -> None:
         self.attachments = attachments
-        # if len(self.attachments) != self.attachment_count:
-        #     raise ValueError(f'附件数量不匹配 {len(self.attachments)} != {self.attachment_count}！')
 
     def resolve_tags(self, tags: list[WizTag]) -> None:
         self.tags = tags
@@ -85,27 +83,26 @@ class WizDocument(object):
     def get_accessed(self):
         return datetime.strptime(self.accessed, FORMAT_STRING).timestamp()
 
-    def gen_front_matter(self):
-        front_matter = ["---"]
-        tags = self._gen_tags()
-        if tags:
-            front_matter.append(tags)
-        front_matter.append(f"date: {self.created}")
+    def _ensure_file_name_valid(self):
+        """ 笔记名将做为文件名，不能含有某些特殊字符，需要替换掉，确保文件名合法
 
-        if self.raw_title is not None:
-            front_matter.append(f"aliases: {self.raw_title}")
+        `document.output_file_name`为最终文件名，是在`document.title`的基础上替换掉特殊字符
+        """
+        # key为文件名不允许出现的字符，value为替换为的字符
+        char_to_replace = {
+            "*": "-",
+            '"': "''",
+            "\\": "╲",
+            "/": "╱",
+            "<": "〈",
+            ">": "〉",
+            ":": "：",
+            "|": "｜",
+            "?": "？",
+        }
 
-        front_matter.append("---")
-        return "\n".join(front_matter)
-
-    def _gen_tags(self):
-        if len(self.tags) == 0:
-            return None
-
-        tags = []
-        for tag in self.tags:
-            tags.append(f'  - {tag.name}')
-
-        tags = "\n".join(tags)
-
-        return f"tags:\n{tags}"
+        name = self.title
+        for k in char_to_replace:
+            name = name.replace(k, char_to_replace[k])
+        
+        self.output_file_name = name

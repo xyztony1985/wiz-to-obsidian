@@ -1,10 +1,10 @@
 import os
-import sqlite3
-import traceback
+import shutil
 from log import log
 from pathlib import Path
 from zipfile import ZipFile, BadZipFile
-
+from config import Config
+from convertor_db import ConvertorDB
 from .entity.wiz_document import WizDocument
 from .markdown.wiz_md_convertor import convert_md
 from .todolist.wiz_td_convertor import convert_td
@@ -12,26 +12,51 @@ from .wiz_storage import WizStorage
 
 
 def _convert_attachments(document: WizDocument, target_attachments_dir: Path):
+    """
+    笔记如有附件，附件释放到 target_attachments_dir
+
+    Args:
+        target_attachments_dir (Path): 附件要释放到的目录
+    """
+    if len(document.attachments) != document.attachment_count:
+        log.warning(f'附件数量不匹配，应有附件数：{document.attachment_count}，实有附件数：{len(document.attachments)}！')
+
     if len(document.attachments) == 0:
+        log.debug("没有附件")
         return
     if not target_attachments_dir.exists():
         target_attachments_dir.mkdir(parents=True)
     for attachment in document.attachments:
         attachment_file = Path(str(document.attachments_dir) + "/" + attachment.name)
-        target_attachment_file = Path(str(target_attachments_dir) + "/" + attachment.name)
         if not attachment_file.exists():
-            print(f"{attachment_file} 附件未找到")
+            log.warning(f"{attachment_file} 附件未找到")
             continue
-        target_attachment_file.write_bytes(attachment_file.read_bytes())
-        os.utime(target_attachment_file, (os.path.getctime(attachment_file), os.path.getmtime(attachment_file)))
+        # copy2 拷贝文件，且保留文件属性
+        shutil.copy2(attachment_file, target_attachments_dir)
 
 
 def _add_front_matter_and_update_time(file: Path, document: WizDocument):
-    # 添加 front matter
+    """
+    添加 front matter
+    """
+
     # tags 标签
+    front_matter = ["---"]
+    if len(document.tags)>0:
+        tags = "\n".join([f'  - {tag.name}' for tag in document.tags])
+        front_matter.append(f"tags:\n{tags}")
+        
     # date 创建时间
+    front_matter.append(f"date: {document.created}")
+
+    # aliases 标题别名： 原始笔记名修改过，则添加
+    if document.title != document.output_file_name:
+        front_matter.append(f"aliases: {document.title}")
+
+    front_matter.append("---")
+
     text = file.read_text("UTF-8")
-    text = document.gen_front_matter() + "\n" + text
+    text =  "\n".join(front_matter) + "\n" + text
     file.write_text(text, "UTF-8")
     # 更新修改时间及访问时间
     os.utime(file, (document.get_accessed(), document.get_modified()))
@@ -40,137 +65,76 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
 class WizConvertor(object):
     wiz_storage: WizStorage = None
     wiz_dir: str = None
-    temp_dir: Path = None
-    target_dir: Path = None
-
-    # 转换过程中的专用数据库连接
-    conn: sqlite3.Connection
-
-    # lzf_db 的内容写入 json 文件中，避免每次都要重新生成 Folder，造成重复
-    db_file: Path = None
-
-    CREATE_SQL: str = """
-        CREATE TABLE WIZ_CONVERTOR (
-            GUID TEXT,
-            LOCATION TEXT NOT NULL,
-            NAME TEXT NOT NULL,
-            TITLE TEXT NOT NULL,
-            SUCCESS TEXT NOT NULL,
-            PRIMARY KEY (guid)
-        );
-    """
+    temp_dir = Path(Config.temp_dir)
+    target_dir = Path(Config.output_dir)
 
     def __init__(self, wiz_dir: str):
+        self.convertor_db = ConvertorDB()
         self.wiz_storage = WizStorage(wiz_dir)
-        self.target_dir = Path(wiz_dir + "_w2o").expanduser()
-        self.temp_dir = Path(wiz_dir + "_temp").expanduser()
         if not self.target_dir.exists():
             self.target_dir.mkdir()
         if not self.temp_dir.exists():
             self.temp_dir.mkdir()
-        self._init_db()
-
-    def _init_db(self):
-        self.db_file = self.target_dir.joinpath("convertor.db")
-
-        self.conn = sqlite3.connect(self.db_file)
-
-        test_sql = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?;"
-
-        table_exists = self.conn.execute(test_sql, ('WIZ_CONVERTOR',)).fetchone()[0]
-        if not table_exists:
-            self.conn.executescript(self.CREATE_SQL)
-
-    def _is_converted(self, document_guid: str):
-        """ 判断笔记是否已经转换
-        """
-        cur = self.conn.cursor()
-        cur.execute(
-            '''
-            SELECT
-                *
-            FROM WIZ_CONVERTOR
-            WHERE GUID = ?
-            ''',
-            (document_guid,)
-        )
-        row = cur.fetchone()
-        if row:
-            return True
-        else:
-            return False
-
-    def _save_result(self, document: WizDocument, success: bool):
-        self.conn.execute(
-            """
-            INSERT INTO
-            WIZ_CONVERTOR(GUID, LOCATION, NAME, TITLE, SUCCESS)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (document.guid, document.location, document.name, document.title, success)
-        )
-        self.conn.commit()
 
     def convert(self):
+        """
+        转换所有笔记
+        """
         index = 0
         for document in self.wiz_storage.documents:
             index += 1
             try:
                 self._convert_document(document, index, len(self.wiz_storage.documents))
             except Exception:
-                print(f"处理失败 {traceback.format_exc()}")
+                log.error("处理失败.", exc_info=1)
 
     def _convert_document(self, document: WizDocument, index: int, total: int):
+        """
+        转换单个笔记
+        """
+
         print('')
         print(f"({index}/{total}) {document.location}{document.title}")
 
-        # is_converted = self._is_converted(document.guid)
-        # if is_converted:
-        #     print('已处理过，跳过.')
-        #     return
+        if not Config.always_convert:
+            is_converted = self.convertor_db._is_converted(document.guid)
+            if is_converted:
+                print('已处理过，跳过.')
+                return
 
         # 转换前，做一些必要的检查
         if not document.file.exists():
-            log.warning(f'找不到文件 `{document.file}`，可能没有下载，请检查！')
+            log.warning(f'笔记没下载：找不到文件 `{document.file}`')
             return
         
-        # 笔记名含有特殊字符的，需要替换掉
-        invalid_chars  = '*"\\/<>:|?'  #obsidian的笔记的文件名不允许含有这些字符
-        if any(char in document.title for char in invalid_chars):
-            document.raw_title = document.title
-            document.title = ''.join(['-' if char in invalid_chars else char for char in document.title])
-            log.warning(f"文件名含有特殊字符，已做处理 `{document.raw_title}` -> `{document.title}`")            
+        # 默认使用笔记名做为文件名，如果因含有特殊字符而调整过，给出提示
+        if document.title != document.output_file_name:
+            log.warning(f"文件名含有特殊字符，已做处理 `{document.title}` -> `{document.output_file_name}`")            
 
         # 解压文档压缩包
         file_extract_dir = self._extract_zip(document)
+        log.debug(f"解压缩路径：{file_extract_dir}")
 
-        log.debug(f"{file_extract_dir}")
 
-        target_file = Path(str(self.target_dir) + document.location + document.title).expanduser()
+        # 创建目标文件夹
+        target_file = Path(str(self.target_dir) + document.location + document.output_file_name).expanduser()
         if not target_file.parent.exists():
             target_file.parent.mkdir(parents=True)
 
+        # 提取附件
         target_attachments_dir = Path(str(target_file) + "_Attachments")
         _convert_attachments(document, target_attachments_dir)
 
+        # 不同笔记类型，转md
+        target_file = Path(str(target_file) + ".md")
         if document.is_todolist(file_extract_dir):
-            # todolist 转为 md
-            target_file = Path(str(target_file) + ".md")
             convert_td(file_extract_dir, target_file)
-            _add_front_matter_and_update_time(target_file, document)
-            self._save_result(document, True)
-            print(f"处理完成")
-            return
+        else:
+            convert_md(file_extract_dir, document.attachments, document.location + document.title, target_file, target_attachments_dir, self.wiz_storage)
 
-        if not document.is_markdown():
-            # 非 md 转为 md
-            target_file = Path(str(target_file) + ".md")
-
-        convert_md(file_extract_dir, document.attachments, document.location + document.title, target_file, target_attachments_dir, self.wiz_storage)
         _add_front_matter_and_update_time(target_file, document)
-        self._save_result(document, True)
-        print(f"处理完成. {'' if document.is_markdown() else '原笔记非Markdown格式，需手工检测正确性.'}")
-        return
+        self.convertor_db.save_result(document.guid, True)
+        print('ok')
 
     def _extract_zip(self, document: WizDocument) -> Path:
         """ 解压缩当前文档的 zip 文件到 work_dir，以 guid 为子文件夹名称
@@ -186,3 +150,4 @@ class WizConvertor(object):
             return file_extract_dir
         except BadZipFile:
             log.error('解压失败，该笔记可能是加密笔记，请先解密')
+            raise
