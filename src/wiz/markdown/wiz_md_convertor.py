@@ -76,13 +76,21 @@ def wiz_html_to_md(file_extract_dir: Path, attachments: list[WizAttachment], tar
               escape_asterisks=False,   #不转义 *
               escape_underscores=False, #不转义 _
               escape_misc=False,        #不转义其他符号
+              heading_style='atx',       #atx格式：# 标题
               )
+
+
+class CustomMarkdownConverter(MarkdownConverter):
+    def convert_div(self, el, text, convert_as_inline):
+        """ 默认没有处理div标签，这里按段落处理
+        """
+        return text+'\n\n'
 
 def md(soup, **options):
     """
     Converting BeautifulSoup objects
     """
-    return MarkdownConverter(**options).convert_soup(soup)
+    return CustomMarkdownConverter(**options).convert_soup(soup)
 
 def callback(pre):
     """
