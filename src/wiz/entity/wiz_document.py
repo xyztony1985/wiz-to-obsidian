@@ -41,7 +41,10 @@ class WizDocument(object):
     file: Path = None
     attachments_dir: Path = None
 
-    def __init__(self, guid: str, title: str, location: str, name: str, type: str, created: str, modified: str, accessed: str, attachment_count: int, wiz_dir: Path) -> None:
+    # 笔记是从其他地方剪辑来的，一般会有来源网址
+    url: str = None
+
+    def __init__(self, guid: str, title: str, location: str, name: str, type: str, created: str, modified: str, accessed: str, url: str, attachment_count: int, wiz_dir: Path) -> None:
         self.guid = guid
         self.title = title
         self.location = location
@@ -52,6 +55,7 @@ class WizDocument(object):
         self.accessed = accessed
         self.attachment_count = attachment_count
         self.wiz_dir = wiz_dir
+        self.url = url
 
         self.file = Path(str(self.wiz_dir) + self.location + self.name).expanduser()
         self._ensure_file_name_valid()

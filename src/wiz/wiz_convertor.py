@@ -53,6 +53,10 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
     if document.title != document.output_file_name:
         front_matter.append(f"aliases: {document.title}")
 
+    # 剪辑来源网址
+    if document.url:
+        front_matter.append(f"source: {document.url}")
+
     front_matter.append("---")
 
     text = file.read_text("UTF-8")
