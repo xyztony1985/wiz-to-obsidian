@@ -7,7 +7,7 @@ from ..entity.wiz_image import WizImage
 from ..wiz_storage import WizStorage
 import re
 import shutil
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 from utils import get_html_file_content
 from config import Config
 from wiz.entity.wiz_internal_link import WizInternalLink
@@ -32,6 +32,17 @@ def wiz_html_to_md(file_extract_dir: Path, attachments: list[WizAttachment], tar
     # 用 BeautifulSoup 解析 wiz html
     html_content = get_html_file_content(html_file)
     soup = BeautifulSoup(html_content, "html.parser")
+
+    # 处理嵌套列表：转换不规范的嵌套列表html，这样后续 markdown 转换为 html 时，不会丢失嵌套列表
+    # 见：[Nested List Formatting Issue](https://github.com/matthewwithanm/python-markdownify/issues/84)
+    for list in soup.find_all(['ul','dl']):
+        # 找上个兄弟节点，如果是空白文字节点，就继续往上找
+        sibling = list.previous_sibling
+        while sibling and isinstance(sibling, NavigableString) and sibling.strip() == '':
+            sibling = sibling.previous_sibling
+        # 上个兄弟节点是li，将当前的 ul 或 dl 节点移动到 li 节点的内部
+        if sibling and sibling.name == 'li':
+            sibling.append(list)
 
     # 计算图片或附件的相对路径，在处理内链时用到
     attachment_relative_path = str(target_attachments_dir.relative_to(Config.output_dir)).replace('\\','/') + '/'
@@ -63,7 +74,7 @@ def wiz_html_to_md(file_extract_dir: Path, attachments: list[WizAttachment], tar
                     log.warning(f"处理笔记内链：{link.guid} 文档找不到")
                     continue
                 internal_link = document.location + document.output_file_name
-                a.replace_with(f'[[{internal_link}|{a.text}]]')
+                a.replace_with(f'[[{internal_link}|{a.text.replace('\r','').replace('\n','')}]]')
             # 附件内链
             else:
                 internal_link = attachment_relative_path + _get_attachment(attachments, link.guid)

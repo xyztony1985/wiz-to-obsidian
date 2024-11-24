@@ -104,12 +104,13 @@ class WizConvertor(object):
 
         # 转换前，做一些必要的检查
         if not document.file.exists():
-            log.warning(f'笔记没下载：找不到文件 `{document.file}`')
+            log.warning('没找到笔记文件，请先下载.`')
+            log.debug(f'找不到笔记文件 `{document.file}`')
             return
         
         # 默认使用笔记名做为文件名，如果因含有特殊字符而调整过，给出提示
         if document.title != document.output_file_name:
-            log.warning(f"文件名含有特殊字符，已做处理 `{document.title}` -> `{document.output_file_name}`")            
+            log.debug(f"文件名含有特殊字符，已做处理 `{document.title}` -> `{document.output_file_name}`")            
 
         # 解压文档压缩包
         file_extract_dir = self._extract_zip(document)
