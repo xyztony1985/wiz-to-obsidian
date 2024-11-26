@@ -43,11 +43,11 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
     # tags 标签
     front_matter = ["---"]
     if len(document.tags)>0:
-        tags = "\n".join([f'  - {tag.name}' for tag in document.tags])
+        tags = "\n".join([f'  - {tag.nesting_name}' for tag in document.tags])
         front_matter.append(f"tags:\n{tags}")
         
     # date 创建时间
-    front_matter.append(f"date: {document.created}")
+    front_matter.append(f"cdate: {document.created}")
 
     # aliases 标题别名： 原始笔记名修改过，则添加
     if document.title != document.output_file_name:

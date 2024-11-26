@@ -72,12 +72,28 @@ class DB(object):
         cur = conn.cursor()
         cur.execute(
             '''
-            SELECT DOCUMENT_GUID, WIZ_DOCUMENT_TAG.TAG_GUID, TAG_NAME
+            SELECT WIZ_DOCUMENT_TAG.TAG_GUID, TAG_NAME
             FROM WIZ_DOCUMENT_TAG
             LEFT JOIN WIZ_TAG ON WIZ_DOCUMENT_TAG.TAG_GUID = WIZ_TAG.TAG_GUID
             WHERE DOCUMENT_GUID = ?
             ''',
             (document_guid,)
+        )
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def get_all_tag(self):
+        """ 获取所有标签
+        """
+        conn = sqlite3.connect(self.index_db)
+        cur = conn.cursor()
+        cur.execute(
+            '''
+            SELECT
+                TAG_GUID, TAG_NAME, TAG_GROUP_GUID
+            FROM WIZ_TAG
+            '''
         )
         rows = cur.fetchall()
         conn.close()

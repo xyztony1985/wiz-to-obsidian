@@ -16,6 +16,9 @@ class WizStorage(object):
     # 所有的文档
     documents: list[WizDocument] = []
 
+    # 所有的标签
+    all_tags: list[WizTag] = []
+
     def __init__(self, wiz_dir: str):
         """ 从 `wiz_dir` 找到为知的数据库文件，读取所有笔记信息到本对象，方便后续操作。
         :param wiz_dir: 笔记文件夹路径
@@ -29,6 +32,10 @@ class WizStorage(object):
         self._init()
 
     def _init(self):
+        # 获取所有标签，并计算嵌套标签名
+        self.all_tags = [WizTag(*tag) for tag in self.wiz_db.get_all_tag()]
+        WizTag.compute_nesting_name(self.all_tags)
+
         rows = self.wiz_db.get_all_document()
         for row in rows:
             document = WizDocument(*row, self.wiz_dir)
@@ -49,7 +56,7 @@ class WizStorage(object):
         rows = self.wiz_db.get_document_tags(document_guid)
         tags: list[WizTag] = []
         for row in rows:
-            tags.append(WizTag(*row))
+            tags.append(WizTag(*row).set_nesting_name(self.all_tags))
         return tags
 
     def get_document(self, document_guid: str):
