@@ -108,5 +108,9 @@ class WizDocument(object):
         name = self.title
         for k in char_to_replace:
             name = name.replace(k, char_to_replace[k])
+
+        # 文件名不能以.开头
+        if (name.startswith('.')):
+            name = '_' + name.strip('.')
         
         self.output_file_name = name

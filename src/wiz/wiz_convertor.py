@@ -108,18 +108,23 @@ class WizConvertor(object):
 
         # 转换前，做一些必要的检查
         if not document.file.exists():
-            log.warning('没找到笔记文件，请先下载.`')
+            log.error('没找到笔记文件，请先下载！')
             log.debug(f'找不到笔记文件 `{document.file}`')
+            return
+
+        # 解压笔记压缩包
+        file_extract_dir = self._extract_zip(document)
+        log.debug(f"解压缩路径：{file_extract_dir}")
+        if file_extract_dir is None:
+            return
+        index_html_file = file_extract_dir.joinpath("index.html")
+        if not index_html_file.exists():
+            log.errorr(f"主文档文件不存在！ {index_html_file}")
             return
         
         # 默认使用笔记名做为文件名，如果因含有特殊字符而调整过，给出提示
         if document.title != document.output_file_name:
             log.debug(f"文件名含有特殊字符，已做处理 `{document.title}` -> `{document.output_file_name}`")            
-
-        # 解压文档压缩包
-        file_extract_dir = self._extract_zip(document)
-        log.debug(f"解压缩路径：{file_extract_dir}")
-
 
         # 创建目标文件夹
         target_file = Path(str(self.target_dir) + document.location + document.output_file_name).expanduser()
@@ -135,7 +140,7 @@ class WizConvertor(object):
         if document.is_todolist(file_extract_dir):
             convert_td(file_extract_dir, target_file)
         else:
-            convert_md(file_extract_dir, document.attachments, document.location + document.title, target_file, target_attachments_dir, self.wiz_storage)
+            convert_md(index_html_file, document.attachments, target_file, target_attachments_dir, self.wiz_storage)
 
         _add_front_matter_and_update_time(target_file, document)
         self.convertor_db.save_result(document.guid, True)
@@ -155,4 +160,3 @@ class WizConvertor(object):
             return file_extract_dir
         except BadZipFile:
             log.error('解压失败，该笔记可能是加密笔记，请先解密')
-            raise

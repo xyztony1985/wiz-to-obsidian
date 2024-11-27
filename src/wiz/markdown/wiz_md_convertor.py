@@ -13,24 +13,16 @@ from config import Config
 from wiz.entity.wiz_internal_link import WizInternalLink
 from markdownify import MarkdownConverter
 
-def convert_md(file_extract_dir: Path, attachments: list[WizAttachment], target_path: str, target_file: Path, target_attachments_dir: Path, wiz_storage: WizStorage):
-    markdown = wiz_html_to_md(file_extract_dir, attachments, target_attachments_dir, wiz_storage)
+def convert_md(index_html_file: Path, attachments: list[WizAttachment], target_file: Path, target_attachments_dir: Path, wiz_storage: WizStorage):
+    markdown = wiz_html_to_md(index_html_file, attachments, target_attachments_dir, wiz_storage)
     markdown = markdown.replace("\r\n", "\n")  #避免多余的空行
     target_file.write_text(markdown, "UTF-8")
     if markdown == "":
         log.warning("Markdown is empty.")
 
-def wiz_html_to_md(file_extract_dir: Path, attachments: list[WizAttachment], target_attachments_dir: Path, wiz_storage: WizStorage):
-
-    if not isinstance(file_extract_dir, Path):
-        file_extract_dir = Path(file_extract_dir)
-
-    html_file = file_extract_dir.joinpath("index.html")
-    if not html_file.exists():
-        raise FileNotFoundError(f"主文档文件不存在！ {html_file}")
-
+def wiz_html_to_md(index_html_file: Path, attachments: list[WizAttachment], target_attachments_dir: Path, wiz_storage: WizStorage):
     # 用 BeautifulSoup 解析 wiz html
-    html_content = get_html_file_content(html_file)
+    html_content = get_html_file_content(index_html_file)
     soup = BeautifulSoup(html_content, "html.parser")
 
     # 处理嵌套列表：转换不规范的嵌套列表html，这样后续 markdown 转换为 html 时，不会丢失嵌套列表
@@ -56,7 +48,7 @@ def wiz_html_to_md(file_extract_dir: Path, attachments: list[WizAttachment], tar
         if src and src.startswith("index_files/"):
             internal_link = src.replace("index_files/", attachment_relative_path)
             img.replace_with(f'![[{internal_link}]]')
-            _convert_image(file_extract_dir.joinpath(src), target_attachments_dir)
+            _convert_image(index_html_file.parent.joinpath(src), target_attachments_dir)
 
     # 处理内链：直接转为 obsidian 的内链格式
     # 笔记内链 <a href="wiz://open_document/?guid=bda9f178-04d5-4cbb-a054-e691b81e87a0&kbguid=&private_kbguid=3d251a9b-2f9a-102d-bd16-dd2e4f011a7d">text</a>
@@ -110,10 +102,29 @@ def callback(pre):
     # <pre class="brush:python;toolbar:false">
     if pre.has_attr('class'):
         class_name = pre['class'][0]
-        if 'brush:' in class_name:
-            return re.search(r'brush:([^;]+)', class_name).group(1).strip()
-        return class_name
+        code_lang = re.search(r'brush:([^;]+)', class_name).group(1).strip() if 'brush:' in class_name else class_name
+        return _fix_code_lang(code_lang)
     return None
+
+def _fix_code_lang(lang):
+    """
+    Obsidian 使用 Prism 进行语法高亮
+    
+    如果在wiz使用了其他的语法高亮，少部分代码名称存在差异，需要在这里转换
+
+    key: wiz中代码块的class名称
+    value: Prism中代码块的class名称
+    """
+    code_dict = {
+        "bat": "batch",
+        "c#": "csharp",
+        "cmd": "batch",
+        "dos": "batch",
+        "language-bash": "bash",
+        "language-markup": "markup",
+        "ps": "powershell",
+    }
+    return code_dict.get(lang) or lang
 
 def _get_attachment(attachments: list[WizAttachment], guid: str):
     for attachment in attachments:
