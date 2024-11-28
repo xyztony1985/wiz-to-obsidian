@@ -20,7 +20,9 @@ def convert_md(index_html_file: Path, attachments: list[WizAttachment], target_f
 def wiz_html_to_md(index_html_file: Path, attachments: list[WizAttachment], target_attachments_dir: Path, wiz_storage: WizStorage):
     # 用 BeautifulSoup 解析 wiz html
     html_content = get_html_file_content(index_html_file)
-    soup = BeautifulSoup(html_content, "html.parser")
+    soup = BeautifulSoup(html_content, "html.parser",
+        multi_valued_attributes=None,    #不做多值属性解析，比如class属性值，默认解析为list，现在会合并为一个str
+    )
 
     # 处理嵌套列表：转换不规范的嵌套列表html，这样后续 markdown 转换为 html 时，不会丢失嵌套列表
     # 见：[Nested List Formatting Issue](https://github.com/matthewwithanm/python-markdownify/issues/84)
@@ -64,7 +66,11 @@ def wiz_html_to_md(index_html_file: Path, attachments: list[WizAttachment], targ
             a.replace_with(f'[[{internal_link}|{a.text.replace('\r','').replace('\n','')}]]')
         # 附件内链
         else:
-            internal_link = attachment_relative_path + _get_attachment(attachments, link.guid)
+            attachment_file_name = _get_attachment(link.guid, attachments)
+            if attachment_file_name is None:
+                log.warning(f"处理附件内链：{link.guid} 附件找不到")
+                continue
+            internal_link = attachment_relative_path + attachment_file_name
             a.replace_with(f'[[{internal_link}]]')
 
 
@@ -74,7 +80,7 @@ def wiz_html_to_md(index_html_file: Path, attachments: list[WizAttachment], targ
               escape_asterisks=False,   #不转义 *
               escape_underscores=False, #不转义 _
               escape_misc=False,        #不转义其他符号
-              heading_style='atx',       #atx格式：# 标题
+              heading_style='atx',      #atx格式：# 标题
               )
 
 
@@ -94,8 +100,8 @@ def callback(pre):
     """
     # <pre class="brush:python;toolbar:false">
     if pre.has_attr('class'):
-        class_name = pre['class'][0]
-        code_lang = re.search(r'brush:([^;]+)', class_name).group(1).strip() if 'brush:' in class_name else class_name
+        class_name = pre['class']
+        code_lang = re.search(r'brush:([^;,]+)', class_name).group(1).strip() if 'brush:' in class_name else class_name
         return _fix_code_lang(code_lang)
     return None
 
@@ -119,7 +125,8 @@ def _fix_code_lang(lang):
     }
     return code_dict.get(lang) or lang
 
-def _get_attachment(attachments: list[WizAttachment], guid: str):
+def _get_attachment(guid: str, attachments: list[WizAttachment]):
+    """ 查找笔记中的附件的文件名 """
     for attachment in attachments:
         if attachment.guid == guid:
             return attachment.name
