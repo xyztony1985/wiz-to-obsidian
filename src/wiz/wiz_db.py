@@ -2,11 +2,11 @@ import sqlite3
 from pathlib import Path
 
 
-class DB(object):
+class WizDB():
     def __init__(self, wiz_dir: Path):
-        self.wiz_dir = wiz_dir
-
-        self.index_db = self.wiz_dir.joinpath('index.db')
+        """ 连接为知数据库，从中查询数据
+        """
+        self.index_db = wiz_dir.joinpath('index.db')
         if not self.index_db.exists():
             raise FileNotFoundError(f'找不到数据库 {self.index_db.resolve()}！')
 

@@ -15,30 +15,31 @@ class WizDocument(object):
     # 文档的 guid
     guid: str = None
     title: str = None
+    """ 笔记名 """
 
     output_file_name: str = None
-    """ 输出文件名，title值替换掉一些特殊字符
-    """
+    """ 输出文件名，title值替换掉一些特殊字符 """
 
-    # 文件夹，为知笔记的文件夹就是一个用 / 分隔的字符串
     location: str = None
+    """ 笔记所属文件夹，格式为：`/folder1/folder2/.../` """
     name: str = None
+    """ 笔记的文件名，格式为：`name.ziw`，ziw实际是zip压缩包 """
     type: str = None
 
     created: str = None
     modified: str = None
     accessed: str = None
 
-    # 从数据库中读取的附件数量，如果大于 0 说明这个文档有附件
-    attachment_count: int = 0
-
     # 文档的标签
     tags: list[WizTag] = []
 
+    # 从数据库中读取的附件数量，如果大于 0 说明这个文档有附件
+    attachment_count: int = 0
     # 文档的附件
     attachments: list[WizAttachment] = []
 
     file: Path = None
+    """ 笔记ziw文件的完整路径 """
     attachments_dir: Path = None
 
     # 笔记是从其他地方剪辑来的，一般会有来源网址

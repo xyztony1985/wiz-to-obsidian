@@ -65,3 +65,6 @@ set "PYTHONPATH=%CD%\src"
 # 运行入口脚本
 python src\main.py
 ```
+
+## 参阅
++ [Beautiful Soup 文档](https://www.crummy.com/software/BeautifulSoup/bs4/doc.zh)

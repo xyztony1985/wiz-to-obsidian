@@ -33,16 +33,15 @@ class ConvertorDB:
             dict_list = [dict(zip(columns, row)) for row in results]
             return dict_list
         except Exception as e:
-            log.exception(f"query error occurred: ")
+            log.exception("query error occurred: ")
             raise e
         finally:
             cursor.close()
 
     def __init__(self):
+        """ 转换过程中的专用数据库
         """
-        转换过程中的专用数据库
-        """
-        log.info("init db")
+        log.debug("init convertor db.")
 
         db = Path(Config.convertor_db_path)
         if not db.exists():
@@ -65,7 +64,7 @@ class ConvertorDB:
     """
             )
 
-    def _is_converted(self, document_guid: str):
+    def is_converted(self, document_guid: str):
         """判断笔记是否已经转换"""
         cur = self.conn.cursor()
         cur.execute(

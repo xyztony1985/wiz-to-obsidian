@@ -1,7 +1,6 @@
-from os import path
 from pathlib import Path
 
-from .wiz_db import DB
+from .wiz_db import WizDB
 from .entity.wiz_tag import WizTag
 from .entity.wiz_attachment import WizAttachment
 from .entity.wiz_document import WizDocument
@@ -10,29 +9,28 @@ from convertor_db import ConvertorDB
 
 class WizStorage(object):
     wiz_dir: Path
-    wiz_db: DB
+    wiz_db: WizDB
     convertor_db: ConvertorDB
 
-    # 所有的文档
     documents: list[WizDocument] = []
+    """ 全部笔记文档 """
 
-    # 所有的标签
     all_tags: list[WizTag] = []
+    """ 全部标签 """
 
-    def __init__(self, wiz_dir: str):
-        """ 从 `wiz_dir` 找到为知的数据库文件，读取所有笔记信息到本对象，方便后续操作。
+    def __init__(self, wiz_dir: Path, wiz_db: WizDB, convertor_db: ConvertorDB):
+        """ 从为知数据库，获取笔记、标签、附件等信息，并做一些必要处理，保存到本对象，方便后续操作。
+
         :param wiz_dir: 笔记文件夹路径
         """
-        self.wiz_dir = Path(wiz_dir).expanduser()
-        print(f'\n\n账号:{path.basename(wiz_dir)}')
-
-        self.wiz_db = DB(self.wiz_dir)
-        self.convertor_db = ConvertorDB()
+        self.wiz_dir = wiz_dir
+        self.wiz_db = wiz_db
+        self.convertor_db = convertor_db
 
         self._init()
 
     def _init(self):
-        # 获取所有标签，并计算嵌套标签名
+        # 获取所有标签，计算嵌套标签名
         self.all_tags = [WizTag(*tag) for tag in self.wiz_db.get_all_tag()]
         WizTag.compute_nesting_name(self.all_tags)
 

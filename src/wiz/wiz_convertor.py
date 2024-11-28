@@ -13,7 +13,7 @@ from .wiz_storage import WizStorage
 
 def _convert_attachments(document: WizDocument, target_attachments_dir: Path):
     """
-    笔记如有附件，附件释放到 target_attachments_dir
+    笔记如有附件，附件释放到 `target_attachments_dir`
 
     Args:
         target_attachments_dir (Path): 附件要释放到的目录
@@ -27,7 +27,7 @@ def _convert_attachments(document: WizDocument, target_attachments_dir: Path):
     if not target_attachments_dir.exists():
         target_attachments_dir.mkdir(parents=True)
     for attachment in document.attachments:
-        attachment_file = Path(str(document.attachments_dir) + "/" + attachment.name)
+        attachment_file = document.attachments_dir.joinpath(attachment.name)
         if not attachment_file.exists():
             log.warning(f"{attachment_file} 附件未找到")
             continue
@@ -68,21 +68,24 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
 
 class WizConvertor(object):
     wiz_storage: WizStorage = None
-    wiz_dir: str = None
     temp_dir = Path(Config.temp_dir)
     target_dir = Path(Config.output_dir)
+    """ 转换后笔记的相关文件，输出在这个目录下 """
 
-    def __init__(self, wiz_dir: str):
-        self.convertor_db = ConvertorDB()
-        self.wiz_storage = WizStorage(wiz_dir)
+    def __init__(self, convertor_db: ConvertorDB, wiz_storage: WizStorage):
+        """ 为知笔记转换器，重点是html转为md
+        """
+        self.convertor_db = convertor_db
+        self.wiz_storage = wiz_storage
         if not self.target_dir.exists():
             self.target_dir.mkdir()
         if not self.temp_dir.exists():
             self.temp_dir.mkdir()
+        
+        self._convert_all_document()
 
-    def convert(self):
-        """
-        转换所有笔记
+    def _convert_all_document(self):
+        """ 转换所有笔记
         """
         index = 0
         for document in self.wiz_storage.documents:
@@ -93,15 +96,14 @@ class WizConvertor(object):
                 log.error("处理失败.", exc_info=1)
 
     def _convert_document(self, document: WizDocument, index: int, total: int):
-        """
-        转换单个笔记
+        """ 转换单个笔记
         """
 
         print('')
         print(f"({index}/{total}) {document.location}{document.title}")
 
         if not Config.always_convert:
-            is_converted = self.convertor_db._is_converted(document.guid)
+            is_converted = self.convertor_db.is_converted(document.guid)
             if is_converted:
                 print('已处理过，跳过.')
                 return
@@ -112,11 +114,12 @@ class WizConvertor(object):
             log.debug(f'找不到笔记文件 `{document.file}`')
             return
 
-        # 解压笔记压缩包
+        # `.ziw`笔记文件，是个压缩包，解压
         file_extract_dir = self._extract_zip(document)
         log.debug(f"解压缩路径：{file_extract_dir}")
         if file_extract_dir is None:
             return
+        # 解压后的`index.html`是笔记的内容
         index_html_file = file_extract_dir.joinpath("index.html")
         if not index_html_file.exists():
             log.errorr(f"主文档文件不存在！ {index_html_file}")
@@ -126,7 +129,7 @@ class WizConvertor(object):
         if document.title != document.output_file_name:
             log.debug(f"文件名含有特殊字符，已做处理 `{document.title}` -> `{document.output_file_name}`")            
 
-        # 创建目标文件夹
+        # 拼接输出文件的全路径，并创建相应文件夹
         target_file = Path(str(self.target_dir) + document.location + document.output_file_name).expanduser()
         if not target_file.parent.exists():
             target_file.parent.mkdir(parents=True)
