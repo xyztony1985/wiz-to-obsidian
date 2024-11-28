@@ -10,13 +10,6 @@ from config import Config
 from wiz.entity.wiz_internal_link import WizInternalLink
 from markdownify import MarkdownConverter
 
-def convert_md(index_html_file: Path, attachments: list[WizAttachment], target_file: Path, target_attachments_dir: Path, wiz_storage: WizStorage):
-    markdown = wiz_html_to_md(index_html_file, attachments, target_attachments_dir, wiz_storage)
-    markdown = markdown.replace("\r\n", "\n")  #避免多余的空行
-    target_file.write_text(markdown, "UTF-8")
-    if markdown == "":
-        log.warning("Markdown is empty.")
-
 def wiz_html_to_md(index_html_file: Path, attachments: list[WizAttachment], target_attachments_dir: Path, wiz_storage: WizStorage):
     # 用 BeautifulSoup 解析 wiz html
     html_content = get_html_file_content(index_html_file)

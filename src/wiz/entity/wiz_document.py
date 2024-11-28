@@ -114,4 +114,9 @@ class WizDocument(object):
         if (name.startswith('.')):
             name = '_' + name.strip('.')
         
+        # 移除文件名中的.md
+        # 为知的markdown笔记，文件名以`.md`结尾，这里要去掉，否则最终的输出文件名会有两个.md
+        if (name.endswith('.md')):
+            name = name.rstrip('.md')
+        
         self.output_file_name = name

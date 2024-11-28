@@ -6,7 +6,7 @@ from zipfile import ZipFile, BadZipFile
 from config import Config
 from convertor_db import ConvertorDB
 from .entity.wiz_document import WizDocument
-from .markdown.wiz_md_convertor import convert_md
+from .markdown.wiz_md_convertor import wiz_html_to_md
 from .todolist.wiz_td_convertor import convert_td
 from .wiz_storage import WizStorage
 
@@ -143,7 +143,13 @@ class WizConvertor(object):
         if document.is_todolist(file_extract_dir):
             convert_td(file_extract_dir, target_file)
         else:
-            convert_md(index_html_file, document.attachments, target_file, target_attachments_dir, self.wiz_storage)
+            markdown = wiz_html_to_md(index_html_file, document.attachments, target_attachments_dir, self.wiz_storage)
+            markdown = markdown.replace("\r\n", "\n")  #避免多余的空行
+            if markdown == "":
+                log.warning("Markdown is empty.")
+            if document.is_markdown():
+                markdown = markdown.replace('\xa0',' ') #将特殊空格替换为普通空格
+            target_file.write_text(markdown, "UTF-8")
 
         _add_front_matter_and_update_time(target_file, document)
         self.convertor_db.save_result(document.guid, True)
