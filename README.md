@@ -12,7 +12,7 @@
   + 图片：如果为 HTTP 链接会尝试下载图片至本地，下载失败（图片地址失效或无法访问）会继续使用 HTTP 地址
 + 普通笔记
   + 同 markdown 笔记，提取内容存为 markdown
-  + **会丢失笔记的样式（加粗、字体、颜色、缩进 等）**
+  + **会丢失笔记的样式（字体、颜色、缩进 等）**
 + 任务清单（todolist2）
   + 不支持：附件、文档链接 等
 
@@ -32,8 +32,8 @@
 
 ## 测试环境
 + Windows 11 23H2
-+ python 3.12.2
 + 为知笔记 4.14.2
++ python 3.12.2
 
 ## 使用必读
 
@@ -68,3 +68,4 @@ python src\main.py
 
 ## 参阅
 + [Beautiful Soup 文档](https://www.crummy.com/software/BeautifulSoup/bs4/doc.zh)
++ [markdownify](https://pypi.org/project/markdownify/)

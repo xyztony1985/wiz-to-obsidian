@@ -115,6 +115,7 @@ def _fix_code_lang(lang):
         "language-bash": "bash",
         "language-markup": "markup",
         "ps": "powershell",
+        "text": "plain",
     }
     return code_dict.get(lang) or lang
 

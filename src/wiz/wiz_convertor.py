@@ -36,12 +36,14 @@ def _convert_attachments(document: WizDocument, target_attachments_dir: Path):
 
 
 def _add_front_matter_and_update_time(file: Path, document: WizDocument):
+    """ 添加 front matter
     """
-    添加 front matter
-    """
+    front_matter = ["---"]
+
+    # wiz document guid
+    front_matter.append(f"wiz-guid: {document.guid}")
 
     # tags 标签
-    front_matter = ["---"]
     if len(document.tags)>0:
         tags = "\n".join([f'  - {tag.nesting_name}' for tag in document.tags])
         front_matter.append(f"tags:\n{tags}")
@@ -51,7 +53,7 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
 
     # aliases 标题别名： 原始笔记名修改过，则添加
     if document.title != document.output_file_name:
-        front_matter.append(f"aliases: {document.title}")
+        front_matter.append(f'aliases: \n  - {document.title}')
 
     # 剪辑来源网址
     if document.url:
@@ -62,6 +64,7 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
     text = file.read_text("UTF-8")
     text =  "\n".join(front_matter) + "\n" + text
     file.write_text(text, "UTF-8")
+
     # 更新修改时间及访问时间
     os.utime(file, (document.get_accessed(), document.get_modified()))
 
@@ -98,15 +101,15 @@ class WizConvertor(object):
     def _convert_document(self, document: WizDocument, index: int, total: int):
         """ 转换单个笔记
         """
-
-        print('')
-        print(f"({index}/{total}) {document.location}{document.title}")
-
         if not Config.always_convert:
             is_converted = self.convertor_db.is_converted(document.guid)
             if is_converted:
-                print('已处理过，跳过.')
+                log.debug(f"({index}/{total}) {document.location}{document.title}")
+                log.debug('已处理过，跳过.')
                 return
+
+        print('')
+        print(f"({index}/{total}) {document.location}{document.title}")
 
         # 转换前，做一些必要的检查
         if not document.file.exists():
