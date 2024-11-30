@@ -1,4 +1,4 @@
-from log import log
+from common.log import log
 from urllib.parse import parse_qs, urlparse
 
 # 笔记内链 wiz://open_document/?guid=bda9f178-04d5-4cbb-a054-e691b81e87a0&kbguid=&private_kbguid=3d251a9b-2f9a-102d-bd16-dd2e4f011a7d

@@ -1,6 +1,6 @@
 import os
 import shutil
-from log import log
+from common.log import log
 from pathlib import Path
 from zipfile import ZipFile, BadZipFile
 from config import Config
@@ -70,7 +70,8 @@ def _add_front_matter_and_update_time(file: Path, document: WizDocument):
 
 
 class WizConvertor(object):
-    wiz_storage: WizStorage = None
+    wiz_storage: WizStorage
+    convertor_db: ConvertorDB
     temp_dir = Path(Config.temp_dir)
     target_dir = Path(Config.output_dir)
     """ 转换后笔记的相关文件，输出在这个目录下 """
@@ -102,7 +103,7 @@ class WizConvertor(object):
         """ 转换单个笔记
         """
         if not Config.always_convert:
-            is_converted = self.convertor_db.is_converted(document.guid)
+            is_converted = self.convertor_db.is_converted(document)
             if is_converted:
                 log.debug(f"({index}/{total}) {document.location}{document.title}")
                 log.debug('已处理过，跳过.')
@@ -162,13 +163,14 @@ class WizConvertor(object):
         """ 解压缩当前文档的 zip 文件到 work_dir，以 guid 为子文件夹名称
         """
         file_extract_dir = self.temp_dir.joinpath(document.guid)
-        # 如果目标文件夹已经存在，就不解压了
-        if file_extract_dir.exists():
+        # 如果目标文件夹已经存在，并且解压后笔记文件没有更新，就不解压了
+        if file_extract_dir.exists() and not self.convertor_db.is_modified_after_extract(document):
             return file_extract_dir
 
         try:
             zip_file = ZipFile(document.file)
             zip_file.extractall(file_extract_dir)
+            self.convertor_db.save_extract_time(document.guid)
             return file_extract_dir
         except BadZipFile:
             log.error('解压失败，该笔记可能是加密笔记，请先解密')

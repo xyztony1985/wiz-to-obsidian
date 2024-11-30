@@ -1,42 +1,13 @@
-import traceback
-from log import log
-import sqlite3
+from common.log import log
 from pathlib import Path
 
+from common.sqlite_base import SQLiteBase
+from common.utils import date_str2timestamp
 from wiz.entity.wiz_document import WizDocument
 from config import Config
 
 
-class ConvertorDB:
-
-    def execute(self, query, parameters:tuple=()):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute(query, parameters)
-            self.conn.commit()
-        except Exception as e:
-            log.error(f"execute error occurred: {traceback.format_exc()}")
-            self.conn.rollback()
-        finally:
-            cursor.close()
-
-    def query(self, query):
-        cursor = self.conn.cursor()
-        results = None
-        try:
-            cursor.execute(query)
-            results = cursor.fetchall()
-            # 获取列名
-            columns = [col[0] for col in cursor.description]
-
-            # 转换为字典列表
-            dict_list = [dict(zip(columns, row)) for row in results]
-            return dict_list
-        except Exception as e:
-            log.exception("query error occurred: ")
-            raise e
-        finally:
-            cursor.close()
+class ConvertorDB(SQLiteBase):
 
     def __init__(self):
         """ 转换过程中的专用数据库
@@ -46,9 +17,9 @@ class ConvertorDB:
         db = Path(Config.convertor_db_path)
         if not db.exists():
             db.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(db)
+        super().__init__(str(db))
 
-        table_exists = self.conn.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='wiz_convertor';").fetchone()[0]
+        table_exists = self.query_scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='wiz_convertor';")
         if not table_exists:
             self.execute(
                 """
@@ -59,28 +30,28 @@ class ConvertorDB:
             title TEXT NOT NULL,    -- 笔记的标题
             file_name TEXT,      -- 转换后的文件名
             success INTEGER,
+            extract_time TIMESTAMP, -- 提取笔记文件的时间
             PRIMARY KEY (guid)
         );
     """
             )
 
-    def is_converted(self, document_guid: str):
-        """判断笔记是否已经转换"""
-        cur = self.conn.cursor()
-        cur.execute(
+    def is_converted(self, document: WizDocument):
+        """ 判断笔记是否已经转换
+        """
+        row = self.query_scalar(
             """
-            SELECT
-                *
+            SELECT count(*)
             FROM WIZ_CONVERTOR
             WHERE GUID = ? AND success=1
             """,
-            (document_guid,),
+            (document.guid,),
         )
-        row = cur.fetchone()
-        return True if row else False
+        # 转换后，笔记有更新，视为未转换
+        return row and (not self.is_modified_after_extract(document))
 
     def save_result(self, document_guid: str, success: bool):
-        self.conn.execute(
+        self.execute(
             """
             UPDATE wiz_convertor SET
                 success=?
@@ -88,7 +59,6 @@ class ConvertorDB:
             """,
             (success, document_guid)
         )
-        self.conn.commit()
 
     def add(self, document: WizDocument):
         self.execute(
@@ -99,3 +69,30 @@ class ConvertorDB:
             """,
             (document.guid, document.location, document.name, document.title, document.output_file_name or document.title, document.guid),
         )
+
+    def save_extract_time(self, document_guid: str):
+        """ 记录解压笔记的时间
+        """
+        self.execute(
+            """
+            UPDATE wiz_convertor SET
+                extract_time = datetime('now', 'localtime')                
+            WHERE guid=?
+            """,
+            (document_guid,)
+        )
+
+    def is_modified_after_extract(self, document: WizDocument):
+        """ 解压后，笔记是否有更新
+        """
+        extract_time = self.query_scalar(
+            """
+            SELECT
+                extract_time
+            FROM WIZ_CONVERTOR
+            WHERE GUID = ?
+            """,
+            (document.guid,)
+        )
+        
+        return (not extract_time) or date_str2timestamp(extract_time) < document.get_modified()

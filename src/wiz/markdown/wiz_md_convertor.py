@@ -1,11 +1,11 @@
 from pathlib import Path
-from log import log
+from common.log import log
 from ..entity.wiz_attachment import WizAttachment
 from ..wiz_storage import WizStorage
 import re
 import shutil
 from bs4 import BeautifulSoup, NavigableString
-from utils import get_html_file_content
+from common.utils import get_html_file_content
 from config import Config
 from wiz.entity.wiz_internal_link import WizInternalLink
 from markdownify import MarkdownConverter

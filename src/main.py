@@ -1,3 +1,4 @@
+from common.log import log
 from pathlib import Path
 from convertor_db import ConvertorDB
 from wiz.wiz_db import WizDB
@@ -10,10 +11,10 @@ wiz_dir = Path(wiz_dir).expanduser()
 print(f'\n\n账号:{wiz_dir.name}')
 
 
-# 初始化几个重要对象
+log.info('初始化几个重要对象')
 wiz_db = WizDB(wiz_dir)
 convertor_db = ConvertorDB()
 wiz_storage = WizStorage(wiz_dir, wiz_db, convertor_db)
 
-# 启动转换器
+log.info('启动转换器')
 WizConvertor(convertor_db, wiz_storage)
